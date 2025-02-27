@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     
     @StateObject var viewModel = PraktoViewModel()
+    let payments = Payments()
     
     var body: some View {
         ZStack {
@@ -37,12 +38,11 @@ struct ContentView: View {
                                 .tint(Color.orange)
                                 .onChange(of: viewModel.isExtendedCourse) { _, newValue in
                                     viewModel.refresh(for: newValue ? .extended : .basic)
-                                    UserDefaults.standard.set(newValue, forKey: "courseTypeKey")
                                 }
                         }
                     }
                     
-                    if let nextPayment = viewModel.getNextPaymentDate(payments: payments) {
+                    if let nextPayment = viewModel.getNextPaymentDate(payments: viewModel.isExtendedCourse ? payments.extended : payments.basic) {
                         Text("Next payment: \(nextPayment)")
                             .font(.headline)
                             .foregroundStyle(.orange)
@@ -118,7 +118,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            viewModel.isExtendedCourse = UserDefaults.standard.bool(forKey: "isExtendedCourse")
+//            viewModel.isExtendedCourse = UserDefaults.standard.bool(forKey: "isExtendedCourse")
             withAnimation {
                 viewModel.refresh(for: viewModel.isExtendedCourse ? .extended : .basic)
             }

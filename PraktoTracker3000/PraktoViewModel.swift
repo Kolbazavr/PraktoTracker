@@ -19,8 +19,11 @@ class PraktoViewModel: ObservableObject {
     @Published var isLoading: Bool = true
     @Published var errorMessage: String?
     
-    @Published var isExtendedCourse: Bool = false
-    //add get set to UserDefaults
+    @Published var isExtendedCourse: Bool { didSet { saveIsExtendedCourse() } }
+    
+    init() {
+        self.isExtendedCourse = UserDefaults.standard.bool(forKey: "isExtendedCourse")
+    }
     
     let loader = Loader()
     
@@ -54,7 +57,7 @@ class PraktoViewModel: ObservableObject {
     
     func getNextPaymentDate(payments: [String]) -> String? {
         let paymentsDate: [Date] = payments.compactMap(\.toDate)
-        return paymentsDate.first(where: { $0 > Date() })?.toString ?? ""
+        return paymentsDate.first(where: { $0 > Date() })?.toString ?? "No future payments"
     }
     
     func refresh(for courseType: CourseType) {
@@ -64,12 +67,16 @@ class PraktoViewModel: ObservableObject {
             do {
                 let icsString = try await loader.fetchICSThingy(for: courseType)
                 let parsedEvents: [Event] = try loader.parseICS(icsString: icsString)
-                self.allEvents = parsedEvents
-                self.currentEvents = self.getCurrentEvents()
-                self.nextEvents = self.getNextEvents()
-                self.daysOfStudy = self.getDaysOfStudy()
-                self.daysTotal = self.getTotalDays()
-                self.progress = Double(daysOfStudy) / Double(daysTotal)
+                await MainActor.run {
+                    self.allEvents = parsedEvents
+                    self.currentEvents = self.getCurrentEvents()
+                    self.nextEvents = self.getNextEvents()
+                    self.daysOfStudy = self.getDaysOfStudy()
+                    self.daysTotal = self.getTotalDays()
+                    self.progress = Double(daysOfStudy) / Double(daysTotal)
+                    self.isLoading = false
+                }
+                
             } catch PraktoError.invalidURL {
                 errorMessage = "URL problem"
             } catch PraktoError.decodingError {
@@ -81,7 +88,10 @@ class PraktoViewModel: ObservableObject {
             } catch {
                 errorMessage = "I dunno what went wrong"
             }
-            isLoading = false
+            
         }
+    }
+    func saveIsExtendedCourse() {
+        UserDefaults.standard.set(isExtendedCourse, forKey: "isExtendedCourse")
     }
 }
